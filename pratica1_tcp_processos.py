@@ -7,7 +7,7 @@
 #
 # O QUE O PROGRAMA FAZ:
 # 1. Inicia um servidor TCP que funciona como coordenador.
-# 2. Cria três processos independentes, chamados A, B e C.
+# 2. Cria quatro processos independentes, chamados A, B, C e D.
 # 3. Os processos enviam mensagens periódicas (heartbeats) ao coordenador.
 # 4. O coordenador registra o estoque de um produto e sua versão; os processos
 #    recebem os dados atualizados quando detectam uma nova versão.
@@ -77,7 +77,8 @@ class EstadoCompartilhado:
         identificador = mensagem.get("id")
         with self.trava:
             if tipo in ("REGISTRAR", "PULSO"):
-                if identificador not in ("A", "B", "C"):
+                # Atualizado para incluir o nó "D"
+                if identificador not in ("A", "B", "C", "D"):
                     return {"erro": "identificador desconhecido"}
                 self.ultimo_contato[identificador] = time.monotonic()
                 versao_cliente = mensagem.get("versao", -1)
@@ -93,7 +94,8 @@ class EstadoCompartilhado:
             if tipo == "STATUS":
                 agora = time.monotonic()
                 situacao = {}
-                for nome in ("A", "B", "C"):
+                # Incluído o nó "D" na checagem de status
+                for nome in ("A", "B", "C", "D"):
                     ultimo = self.ultimo_contato.get(nome)
                     situacao[nome] = (
                         "ATIVO" if ultimo is not None and agora - ultimo < TIMEOUT_FALHA
@@ -157,7 +159,8 @@ def main():
         contexto = mp.get_context("spawn")  # funciona também no Windows
         nos = {}
         try:
-            for nome in ("A", "B", "C"):
+            # Inicialização alterada para incluir o nó "D"
+            for nome in ("A", "B", "C", "D"):
                 nos[nome] = contexto.Process(target=trabalhador, args=(nome, porta))
                 nos[nome].start()
             # O tempo de inicialização de subprocessos varia em cada computador.
@@ -167,7 +170,7 @@ def main():
                 if all(valor == "ATIVO" for valor in status.values()):
                     break
                 time.sleep(0.2)
-            mostrar_status(porta, "1. Estado inicial dos três processos")
+            mostrar_status(porta, "1. Estado inicial dos quatro processos")
 
             resposta = requisitar(porta, {"tipo": "ATUALIZAR", "estoque": 7})
             registrar(f"Professor: estoque alterado para 7 (v{resposta['versao']})")
